@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Commitment, PageResponse } from "@/utils/types";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { formatDigitValue } from "@/utils/utils";
 import {
     Table,
     TableBody,
@@ -8,10 +11,6 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button";
-import { Commitment, PageResponse } from "@/utils/types";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { formatDigitValue } from "@/utils/utils";
 
 async function fetchCommitments(commitmentId: string, page?: string, filter?: string): Promise<PageResponse<Commitment>> {
     const response = await fetch(`http://localhost:8000/api/v1/investors/${commitmentId}/commitments?size=10&page=${page || 0}&asset_class=${filter || 'all'}`)
@@ -22,8 +21,9 @@ async function fetchCommitments(commitmentId: string, page?: string, filter?: st
 }
 
 export default async function CommitmentsPage({ params, searchParams }: { searchParams: { page: string | undefined , assetClass: string | undefined },
-     params: { commitmentId: string , investorName: string} }) {
+    params: { commitmentId: string , investorName: string} }) {
     
+    // Next.js complains if these params are not 'awaited'
     const { commitmentId } = await params
     const { page, assetClass: filter } = await searchParams
     

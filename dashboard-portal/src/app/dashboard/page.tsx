@@ -1,4 +1,5 @@
 import { Investor, PageResponse } from "@/utils/types";
+import { formatDateValue, formatDigitValue } from "@/utils/utils";
 import Link from "next/link";
 import {
     Table,
@@ -8,7 +9,6 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { formatDateValue, formatDigitValue } from "@/utils/utils";
 
 async function fetchInvestors(): Promise<PageResponse<Investor>> {
     try {
@@ -83,8 +83,6 @@ export default async function Home() {
                     ))}
                 </TableBody>
             </Table>
-
-
         </main>
 
     );
