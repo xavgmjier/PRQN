@@ -1,13 +1,15 @@
-import math
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, func
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from pydantic.generics import GenericModel
 from fastapi import FastAPI, Depends, APIRouter, HTTPException, status
-from typing import Any, List, Optional, Generic, TypeVar
+from typing import List
 from fastapi.middleware.cors import CORSMiddleware
+from models import Investor, Commitment
+from schema import InvestorResponse, CommitmentResponse, GenericPageResponse
+from database import Base, engine, get_db
+import math
+
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -23,68 +25,6 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
     allow_headers=["*"],  # Allows all headers
 )
-
-DATABASE_URL = "sqlite:///../InvestorCommitments.db"
-
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-class Investor(Base):
-    __tablename__ = "investors"
-
-    investor_id = Column(Integer, primary_key=True)
-    investor_name = Column(String, nullable=False, unique=True)
-    investory_type = Column(String, nullable=False)
-    investor_country = Column(String, nullable=False)
-    investor_date_added = Column(String, nullable=False)
-    investor_last_updated = Column(String, nullable=False)
-
-class Commitment(Base):
-    __tablename__ = 'commitments'
-
-    commitment_id = Column(String, primary_key=True)
-    commitment_asset_class = Column(String, nullable=False)
-    commitment_currency = Column(String, nullable=False)
-    commitment_amount = Column(Integer, nullable=False)
-    investor_id = Column(Integer, ForeignKey('investors.id'), nullable=False)
-
-Base.metadata.create_all(bind=engine)
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-class InvestorResponse(BaseModel):
-    investor_id: str
-    investor_name: str
-    investory_type: str
-    investor_country: str
-    investor_date_added: str
-    investor_last_updated: str
-
-class CommitmentResponse(BaseModel):
-    commitment_id: str
-    commitment_asset_class: str
-    commitment_currency: str
-    commitment_amount: int
-
-T = TypeVar("T")
-
-class GenericPageResponse(BaseModel, Generic[T]):
-    # The response for a paginated query
-    page_number: int
-    page_size: int
-    total_pages: int
-    total_records: int
-    content: List[T]
-    content_meta: Optional[Any] = None
         
 @app.get("/", status_code=200)
 def healthcheck():
@@ -98,6 +38,9 @@ async def get_all_investors(page: int = 0, size: int = 10, db: Session = Depends
 
     commitment_sum_total_by_investor = db.query(Commitment.investor_id, func.sum(Commitment.commitment_amount))\
         .group_by(Commitment.investor_id).all()
+    
+    if investors.first() == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"could not return investors")
 
     meta_dict = {
         "total_commitments": dict(commitment_sum_total_by_investor)
@@ -113,8 +56,12 @@ async def get_all_investors(page: int = 0, size: int = 10, db: Session = Depends
     )
 
 @v1_route.get("/investors/{id}", response_model=List[InvestorResponse])
-async def get_investor_by_id(id: int, skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+async def get_investor_by_id(id: int, db: Session = Depends(get_db)):
     investor = db.query(Investor).where(Investor.investor_id == id).all()
+
+    if investor.first() == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"could not return investor by ID: {id}")
+    
     return investor
 
 @v1_route.get("/investors/{id}/commitments", response_model=GenericPageResponse[CommitmentResponse])
@@ -145,6 +92,9 @@ async def get_commitments_by_investor_id(id: int, page: int = 0, size: int = 10,
 
     commitments_tuple = [(tuple(r)) for r in commitment_sum_by_asset_class]
 
+    if commitments.first() == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"could not return commitments for investor: {id}")
+
     meta_content = {
         "investor_name": investor_name[0],
         "total_commitment": commitment_sum_total[0][1],
@@ -152,9 +102,6 @@ async def get_commitments_by_investor_id(id: int, page: int = 0, size: int = 10,
     }
 
     available_pages = math.ceil(commitment_record_count_total/size)
-
-    if commitments.first() == None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"could not return commitments for investor: {id}")
     
     return GenericPageResponse(
         page_number=page,
@@ -168,22 +115,30 @@ async def get_commitments_by_investor_id(id: int, page: int = 0, size: int = 10,
     
 @v1_route.get("/commitments/", response_model=GenericPageResponse[CommitmentResponse])
 async def get_all_commitments(page: int = 0, size: int = 10, db: Session = Depends(get_db)):
-    all_commitments = db.query(Commitment).offset(page*size).limit(size).all()
+    all_commitments = db.query(Commitment).offset(page*size).limit(size)
     commitment_record_count = db.query(Commitment.commitment_id).count()
 
     available_pages = math.ceil(commitment_record_count/size)
+
+    if all_commitments.first() == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"could not return commitments")
 
     return GenericPageResponse(
         page_number=page,
         page_size=size,
         total_pages=available_pages,
         total_records=commitment_record_count,
-        content=all_commitments
+        content=all_commitments,
+        content_meta={}
+
     )
 
 @v1_route.get("/commitments/{id}", response_model=List[CommitmentResponse])
-async def get_commitment_by_id(id: str, skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+async def get_commitment_by_id(id: str, db: Session = Depends(get_db)):
     commitment = db.query(Commitment).where(Commitment.commitment_id == id)
+
+    if commitment.first() == None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"could not return commitment by ID: {id}")
 
     return commitment
 

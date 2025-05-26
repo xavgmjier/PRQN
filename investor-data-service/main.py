@@ -81,6 +81,7 @@ enriched_commitments_df = pd.concat([commitments_df, commitments_data_frame], ig
 
 # Step 8 - Write dataframe data to database tables
 try:
+    print("writing to database")
     enriched_investors_df.to_sql('investors', engine, if_exists='append', index=False)
     enriched_commitments_df.to_sql('commitments', engine, if_exists='append', index=False)
 except Exception as e:
