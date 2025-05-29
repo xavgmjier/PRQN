@@ -29,11 +29,11 @@ export default async function CommitmentsPage({ params, searchParams }: { search
     
     const data = await fetchCommitments(commitmentId, page, filter)
 
-    const currentPage: number = data['page_number']
-    const maxPageNumber: number = data['total_pages']
-    const amountByAsset: Record<string, number> = data['content_meta']['total_commitments_per_asset_class']
-    const totalCommitment: number = data['content_meta']['total_commitment']
-    const investorName: string = data['content_meta']['investor_name']
+    const currentPage = data['page_number']
+    const maxPageNumber = data['total_pages']
+    const amountByAsset = data['content_meta']['total_commitments_per_asset_class']
+    const totalCommitment = data['content_meta']['total_commitment']
+    const investorName = data['content_meta']['investor_name']
 
     const baseRoute = `/investors/commitments/${commitmentId}`
 

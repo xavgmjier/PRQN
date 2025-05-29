@@ -20,7 +20,6 @@ async function fetchInvestors(): Promise<PageResponse<Investor>> {
 
 }
 
-
 export default async function Home() {
 
     const fetchResult = await fetchInvestors()
