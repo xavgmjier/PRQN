@@ -5,37 +5,42 @@ from nanoid import generate
 
 
 # ////// Create the database tables \\\\\\
-connection = sqlite3.connect('InvestorCommitments.db')
-connection.execute("PRAGMA foreign_keys = 1")
-connection.execute('''
-    CREATE TABLE IF NOT EXISTS investors
-       (
-            investor_id TEXT PRIMARY KEY,
-            investor_name TEXT NOT NULL,
-            investory_type TEXT NOT NULL, 
-	        investor_country TEXT NOT NULL,
-            investor_date_added TEXT NOT NULL,
-            investor_last_updated TEXT NOT NULL
-        );
-''')
+try:
+    print('Creating SQLite database tables...')
+    connection = sqlite3.connect('InvestorCommitments.db')
+    connection.execute("PRAGMA foreign_keys = 1")
+    connection.execute('''
+        CREATE TABLE IF NOT EXISTS investors
+           (
+                investor_id TEXT PRIMARY KEY,
+                investor_name TEXT NOT NULL,
+                investory_type TEXT NOT NULL, 
+    	        investor_country TEXT NOT NULL,
+                investor_date_added TEXT NOT NULL,
+                investor_last_updated TEXT NOT NULL
+            );
+    ''')
 
-connection.execute('''
-    CREATE TABLE IF NOT EXISTS commitments
-       (
-            commitment_id TEXT PRIMARY KEY,
-            commitment_asset_class TEXT NOT NULL,
-            commitment_amount INTEGER NOT NULL, 
-	        commitment_currency TEXT NOT NULL,
-            investor_id INTEGER NOT NULL,
-            FOREIGN KEY (investor_id) REFERENCES investors (investor_id)
-                ON UPDATE CASCADE
-                ON DELETE CASCADE
-        );
-''')
- 
-connection.close()
+    connection.execute('''
+        CREATE TABLE IF NOT EXISTS commitments
+           (
+                commitment_id TEXT PRIMARY KEY,
+                commitment_asset_class TEXT NOT NULL,
+                commitment_amount INTEGER NOT NULL, 
+    	        commitment_currency TEXT NOT NULL,
+                investor_id INTEGER NOT NULL,
+                FOREIGN KEY (investor_id) REFERENCES investors (investor_id)
+                    ON UPDATE CASCADE
+                    ON DELETE CASCADE
+            );
+    ''')
+    
+    connection.close()
+except Exception as e:
+   print('error creating SQLite database tables', e)
+   
 
-# ////// Create pandas dataframe from database tables \\\\\\
+    # ////// Create pandas dataframe from database tables \\\\\\
 
 engine = create_engine('sqlite:///InvestorCommitments.db')
 # Reading the SQLite table
@@ -58,7 +63,7 @@ source_df.insert(0, 'Investor ID',\
     [str(abs(hash(source_df.iloc[x]['Investor Name'] + source_df.iloc[x]['Investor Date Added']))) for x in range(len(source_df))], False)
 
 
-# Step 4 - Create new dataframes baed on the source, that match the structure of the previously created database tables 
+# Step 4 - Create new dataframes based on the source csv dataframe, that match the structure of the previously created database tables 
 investors_data_frame = source_df[['Investor ID','Investor Name',\
                                   'Investory Type','Investor Country',\
                                   'Investor Date Added', 'Investor Last Updated']]
@@ -81,10 +86,10 @@ enriched_commitments_df = pd.concat([commitments_df, commitments_data_frame], ig
 
 # Step 8 - Write dataframe data to database tables
 try:
-    print("writing to database")
+    print("Writing to database...")
     enriched_investors_df.to_sql('investors', engine, if_exists='append', index=False)
     enriched_commitments_df.to_sql('commitments', engine, if_exists='append', index=False)
 except Exception as e:
-  print("Something went wrong while running the database build script: ", e)
+  print("Something went wrong while writing the dataframe records to the database: ", e)
 
 engine.dispose()

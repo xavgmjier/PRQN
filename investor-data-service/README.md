@@ -12,14 +12,14 @@ pip3 install -r requirements.txt
 
 ### Build the Database
 
-The database must be built before the webserver can be started
+If there isn't already a database file within the root directory, then the database must be built before the webserver can be started
 
 ```InvestorCommitments.db``` will appear in the root directory after running the following command
 
 From the root directory run:
 
 ``` bash
-python3 main.py
+python3 build.py
 ```
 
 ### Start the Web Server
